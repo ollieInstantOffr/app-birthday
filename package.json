@@ -16,6 +16,7 @@
     "@aws-sdk/client-s3": "^3.1131.0",
     "@aws-sdk/s3-request-presigner": "^3.1131.0",
     "@prisma/client": "^6.19.3",
+    "heic-to": "^1.5.2",
     "next": "^16.3.5",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",

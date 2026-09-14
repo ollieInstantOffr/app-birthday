@@ -44,16 +44,54 @@ export async function api<T>(path: string, body?: unknown): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-/** Skalerer ned til maks 1600 px bredde og lager JPEG. iPhone-bilder er store. */
-export async function compressImage(file: File, maxWidth = 1600, quality = 0.85): Promise<Blob> {
-  const url = URL.createObjectURL(file);
+export class UnsupportedImageError extends Error {}
+
+const HEIC_TYPES = ['image/heic', 'image/heif', 'image/heic-sequence', 'image/heif-sequence'];
+const looksLikeHeic = (file: File) => HEIC_TYPES.includes(file.type.toLowerCase()) || /\.(heic|heif)$/i.test(file.name);
+
+function decode(blob: Blob): Promise<{ img: HTMLImageElement; release: () => void }> {
+  const url = URL.createObjectURL(blob);
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve({ img, release: () => URL.revokeObjectURL(url) });
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('decode'));
+    };
+    img.src = url;
+  });
+}
+
+/**
+ * HEIC/HEIF (Apples bildeformat) → JPEG, for nettlesere som ikke kan lese det selv
+ * (Chrome, Firefox, Android). Safari på iPhone/Mac leser HEIC direkte og trenger ikke dette.
+ * Biblioteket lastes bare når det faktisk trengs.
+ */
+async function convertHeic(file: File): Promise<Blob | null> {
+  const { heicTo, isHeic } = await import('heic-to/next');
+  if (!looksLikeHeic(file) && !(await isHeic(file).catch(() => false))) return null;
+  return heicTo({ blob: file, type: 'image/jpeg', quality: 0.92 });
+}
+
+/**
+ * Gjør et valgt bilde klart: leser JPEG, PNG, HEIC/HEIF osv., skalerer ned til maks 1600 px
+ * bredde og lager JPEG. Resultatet brukes både til forhåndsvisning og opplasting, så alt
+ * som lagres og vises i appen er vanlig JPEG.
+ */
+export async function prepareImage(file: File, maxWidth = 1600, quality = 0.85): Promise<Blob> {
+  let decoded: Awaited<ReturnType<typeof decode>>;
   try {
-    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const el = new Image();
-      el.onload = () => resolve(el);
-      el.onerror = reject;
-      el.src = url;
+    decoded = await decode(file);
+  } catch {
+    const converted = await convertHeic(file).catch((e) => {
+      console.error('[heic]', e);
+      return null;
     });
+    if (!converted) throw new UnsupportedImageError('Bildeformatet støttes ikke');
+    decoded = await decode(converted);
+  }
+  const { img, release } = decoded;
+  try {
     const scale = Math.min(1, maxWidth / img.naturalWidth);
     const canvas = document.createElement('canvas');
     canvas.width = Math.round(img.naturalWidth * scale);
@@ -63,25 +101,44 @@ export async function compressImage(file: File, maxWidth = 1600, quality = 0.85)
       canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob'))), 'image/jpeg', quality),
     );
   } finally {
-    URL.revokeObjectURL(url);
+    release();
   }
 }
 
-export async function uploadPhoto(taskId: number, file: File): Promise<GameState> {
-  const blob = await compressImage(file);
-  const { key, url } = await api<{ key: string; url: string }>('/api/uploads/presign', { taskId });
-  const viaServer = `/api/uploads/local?key=${encodeURIComponent(key)}`;
-  const put = (target: string) => fetch(target, { method: 'PUT', body: blob, headers: { 'Content-Type': 'image/jpeg' } });
-  let res: Response | null = null;
+/** Laster opp et bilde som allerede er gjort klart med prepareImage. */
+export async function uploadPhoto(taskId: number, blob: Blob): Promise<GameState> {
+  let presign: { key: string; url: string };
   try {
-    res = await put(url);
-  } catch {
-    res = null; // nettverks- eller CORS-feil mot S3
+    presign = await api<{ key: string; url: string }>('/api/uploads/presign', { taskId });
+  } catch (e) {
+    throw new UploadError('presign', e instanceof HttpError ? e.status : 0);
   }
+  const { key, url } = presign;
+  const viaServer = `/api/uploads/local?key=${encodeURIComponent(key)}`;
+  const put = (target: string) =>
+    fetch(target, { method: 'PUT', body: blob, headers: { 'Content-Type': 'image/jpeg' } }).catch(() => null); // nett/CORS-feil → null
+
+  let res = await put(url);
+  // Direkte til S3 feilet (ofte manglende CORS på bøtta) — send via serveren i stedet.
   if ((!res || !res.ok) && url !== viaServer) res = await put(viaServer);
-  if (!res || !res.ok) throw new HttpError(res?.status ?? 0);
-  const done = await api<{ state: GameState }>(`/api/tasks/${taskId}/photo`, { key });
-  return done.state;
+  if (!res || !res.ok) throw new UploadError('upload', res?.status ?? 0);
+
+  try {
+    const done = await api<{ state: GameState }>(`/api/tasks/${taskId}/photo`, { key });
+    return done.state;
+  } catch (e) {
+    throw new UploadError('save', e instanceof HttpError ? e.status : 0);
+  }
+}
+
+/** Hvilket steg som feilet, så feilmeldingen i appen kan si noe nyttig. */
+export class UploadError extends Error {
+  constructor(
+    public stage: 'presign' | 'upload' | 'save',
+    public status: number,
+  ) {
+    super(`${stage} ${status || 'nettverk'}`);
+  }
 }
 
 const OSLO = 'Europe/Oslo';

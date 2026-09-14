@@ -8,6 +8,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false }, { status: 401 });
   }
   const res = NextResponse.json({ ok: true });
-  setSession(res, 'player');
+  await setSession(res, 'player');
   return res;
 }

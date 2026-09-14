@@ -18,11 +18,11 @@ npm run dev
 
 ## Admin (`/admin`)
 
-- **Testmodus** — åpner alle brev uansett klokke og rekkefølge, hint med en gang, og en «Finalen»-knapp øverst i appen. Et merke «Testmodus» vises i appen så lenge den er på.
+- **Testmodus** — fjerner tidslåsene, gir hint med en gang, og en «Finalen»-knapp øverst i appen. Brevene må fortsatt løses i rekkefølge. Et merke «Testmodus» vises i appen så lenge den er på.
 - **Fremdrift** — status per brev, når det ble åpnet og løst, alle svarforsøk og hint, pluss en aktivitetslogg for hele dagen. Oppdateres hvert 15. sekund.
 - **Bilder** — alle opplastede bilder i et galleri, med stor visning og lenke til originalen.
-- **Redningsplanker** — «Lås opp nå», «Marker som løst» og «Nullstill brev» per brev.
-- **Nullstill appen** — sletter all fremdrift, med valg om å slette bildene også.
+- **Redningsplanker** — «Åpne før kl. …» (hopper over tidslåsen), «Marker som løst» og «Nullstill brev» per brev. Rekkefølgen kan ikke hoppes over: et brev åpner bare når alle før er forseglet.
+- **Nullstill appen** — sletter all fremdrift, med valg om å slette bildene og å logge ut alle Regines innloggede enheter (full nullstilling).
 
 - **Varsler til Regine** — status for enhetene hennes, et felt for å sende egne varsler (med hurtigvalg), og logg over alt som er sendt.
 

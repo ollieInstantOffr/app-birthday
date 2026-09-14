@@ -67,6 +67,8 @@ model AppState {
   id           Int       @id @default(1)
   welcomedAt   DateTime?
   giftOpenedAt DateTime?
-  /// Testmodus: alle brev åpne, hint med en gang, finalen tilgjengelig. Styres fra /admin.
+  /// Testmodus: ingen tidslåser, hint med en gang, finalen tilgjengelig. Styres fra /admin.
   testMode     Boolean   @default(false)
+  /// Økes ved full nullstilling — da blir alle Regines innloggede enheter logget ut.
+  sessionVersion Int     @default(1)
 }

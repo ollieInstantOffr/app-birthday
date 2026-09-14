@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { isAdmin, unauthorized } from '@/lib/auth';
 import { parseTaskId, upsertProgress } from '@/lib/progress';
 
-// Redningsplanken: åpner brevet uansett klokke og rekkefølge.
+// Åpner et tidslåst brev uten å vente på klokka. Rekkefølgen gjelder fortsatt:
+// brevet åpner først når alle brevene før er forseglet.
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!(await isAdmin())) return unauthorized();
   const id = parseTaskId((await params).id);

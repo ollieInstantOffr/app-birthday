@@ -271,8 +271,8 @@ export default function AdminPage() {
               <span style={pill(data.testMode ? C.gold : '#F3ECEF', data.testMode ? C.plum : C.mauve)}>{data.testMode ? 'PÅ' : 'AV'}</span>
             </div>
             <div style={{ fontSize: 14, color: C.mauve, marginTop: 6, lineHeight: '20px' }}>
-              Åpner alle brev uansett klokke og rekkefølge, gjør hint tilgjengelige med en gang, og lar deg åpne finalen fra en knapp øverst i appen.
-              Fremdriften lagres som vanlig.
+              Fjerner tidslåsene (07:00, 13:15, 18:15), gjør hint tilgjengelige med en gang, og lar deg åpne finalen fra en knapp øverst i appen.
+              Brevene må fortsatt løses i rekkefølge. Fremdriften lagres som vanlig.
             </div>
             {data.testMode && (
               <div style={{ fontSize: 13, color: '#8A6A2E', marginTop: 8, fontWeight: 700 }}>
@@ -330,7 +330,7 @@ export default function AdminPage() {
                 key={t.id}
                 task={t}
                 busy={busy}
-                onUnlock={() => post(`/api/admin/unlock/${t.id}`, undefined, `Lås opp brev ${t.id} nå, uansett klokke og rekkefølge?`)}
+                onUnlock={() => post(`/api/admin/unlock/${t.id}`, undefined, `Åpne brev ${t.id} nå, uten å vente til kl. ${t.unlockTime}?`)}
                 onSolve={() => post(`/api/admin/solve/${t.id}`, undefined, `Marker brev ${t.id} som løst?`)}
                 onReset={() =>
                   post(
@@ -405,7 +405,7 @@ export default function AdminPage() {
         </section>
 
         {/* faresone */}
-        <DangerZone busy={busy === '/api/admin/reset'} onReset={(deleteImages) => post('/api/admin/reset', { deleteImages })} />
+        <DangerZone busy={busy === '/api/admin/reset'} onReset={(options) => post('/api/admin/reset', options)} />
       </div>
 
       {lightbox !== null && data.photos[lightbox] && (
@@ -736,9 +736,9 @@ function TaskRow({
           </div>
         )}
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
-          {(t.status === 'locked' || t.status === 'timelocked') && (
+          {t.status === 'timelocked' && (
             <Button small tone="gold" onClick={onUnlock} disabled={busy !== null}>
-              Lås opp nå
+              Åpne før kl. {t.unlockTime}
             </Button>
           )}
           {t.status !== 'solved' && (
@@ -824,31 +824,63 @@ function Lightbox({ photos, index, onIndex, onClose }: { photos: AdminPhoto[]; i
   );
 }
 
-function DangerZone({ busy, onReset }: { busy: boolean; onReset: (deleteImages: boolean) => void }) {
+function DangerZone({
+  busy,
+  onReset,
+}: {
+  busy: boolean;
+  onReset: (options: { deleteImages: boolean; logoutDevices: boolean }) => void;
+}) {
   const [deleteImages, setDeleteImages] = useState(false);
+  const [logoutDevices, setLogoutDevices] = useState(false);
+  const checkbox: CSSProperties = { appearance: 'auto', width: 16, height: 16, flex: 'none', marginTop: 2 };
+  const row: CSSProperties = { display: 'flex', alignItems: 'flex-start', gap: 8, marginTop: 10, fontSize: 14, lineHeight: '20px' };
+  const full = deleteImages && logoutDevices;
+
   return (
     <section style={{ ...card, border: '1.5px solid rgba(217,76,130,.35)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
       <div style={{ flex: '1 1 420px' }}>
         <strong style={{ fontSize: 16, color: '#B93A6B' }}>Nullstill appen</strong>
         <div style={{ fontSize: 14, color: C.mauve, marginTop: 6, lineHeight: '20px' }}>
-          Sletter all fremdrift, alle forsøk, hint og bildekoblinger, så jakten starter helt på nytt fra innloggingen hennes. Testmodus beholdes som den er.
+          Sletter all fremdrift, alle forsøk, hint, bildekoblinger og varselloggen, så jakten starter helt på nytt. Testmodus beholdes som den er.
         </div>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, fontSize: 14 }}>
-          <input type="checkbox" checked={deleteImages} onChange={(e) => setDeleteImages(e.target.checked)} style={{ appearance: 'auto', width: 16, height: 16 }} />
-          Slett også de opplastede bildene fra lagringen
+        <label style={row}>
+          <input type="checkbox" checked={deleteImages} onChange={(e) => setDeleteImages(e.target.checked)} style={checkbox} />
+          <span>Slett også de opplastede bildene fra lagringen</span>
         </label>
+        <label style={row}>
+          <input type="checkbox" checked={logoutDevices} onChange={(e) => setLogoutDevices(e.target.checked)} style={checkbox} />
+          <span>
+            Logg ut alle innloggede enheter
+            <span style={{ display: 'block', fontSize: 12, color: C.mauve }}>
+              Regine må skrive inn fødselsdatoen på nytt, og varsler må slås på igjen. Du forblir logget inn her.
+            </span>
+          </span>
+        </label>
+        <button
+          type="button"
+          onClick={() => {
+            setDeleteImages(true);
+            setLogoutDevices(true);
+          }}
+          style={{ marginTop: 10, fontSize: 13, color: C.rose, fontWeight: 700, textDecoration: 'underline' }}
+        >
+          Velg full nullstilling
+        </button>
       </div>
       <Button
         tone="danger"
         disabled={busy}
         onClick={() => {
-          const text = deleteImages
-            ? 'Nullstille hele appen OG slette alle opplastede bilder? Dette kan ikke angres.'
-            : 'Nullstille hele appen? All fremdrift og alle forsøk slettes.';
-          if (window.confirm(text)) onReset(deleteImages);
+          const parts = ['All fremdrift og alle forsøk slettes.'];
+          if (deleteImages) parts.push('Alle opplastede bilder slettes.');
+          if (logoutDevices) parts.push('Alle Regines enheter logges ut, og varsel-enhetene fjernes.');
+          if (window.confirm(`${full ? 'Full nullstilling' : 'Nullstille appen'}?\n\n${parts.join('\n')}\n\nDette kan ikke angres.`)) {
+            onReset({ deleteImages, logoutDevices });
+          }
         }}
       >
-        {busy ? 'Nullstiller…' : 'Nullstill alt'}
+        {busy ? 'Nullstiller…' : full ? 'Nullstill helt' : 'Nullstill alt'}
       </Button>
     </section>
   );

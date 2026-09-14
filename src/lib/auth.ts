@@ -2,6 +2,7 @@ import 'server-only';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { prisma } from './db';
 
 export type Role = 'player' | 'admin';
 
@@ -31,9 +32,16 @@ export function codeMatches(input: string, role: Role): boolean {
   return safeEqual(input.replace(/\s/g, ''), expected);
 }
 
-export function setSession(res: NextResponse, role: Role) {
+/** Gjeldende versjon for Regines innlogginger. Full nullstilling i admin øker den og logger ut alle enheter. */
+async function playerSessionVersion(): Promise<number> {
+  const app = await prisma.appState.findUnique({ where: { id: 1 }, select: { sessionVersion: true } });
+  return app?.sessionVersion ?? 1;
+}
+
+export async function setSession(res: NextResponse, role: Role) {
   const exp = Math.floor(Date.now() / 1000) + MAX_AGE[role];
-  const payload = `${role}.${exp}`;
+  const version = role === 'player' ? await playerSessionVersion() : 0;
+  const payload = `${role}.${exp}.${version}`;
   res.cookies.set(COOKIE[role], `${payload}.${sign(payload)}`, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -50,10 +58,13 @@ export function clearSession(res: NextResponse, role: Role) {
 async function hasRole(role: Role): Promise<boolean> {
   const raw = (await cookies()).get(COOKIE[role])?.value;
   if (!raw) return false;
-  const [r, exp, sig] = raw.split('.');
-  if (r !== role || !exp || !sig) return false;
-  if (!safeEqual(sig, sign(`${r}.${exp}`))) return false;
-  return Number(exp) * 1000 > Date.now();
+  const parts = raw.split('.');
+  if (parts.length !== 4) return false;
+  const [r, exp, version, sig] = parts;
+  if (r !== role || !safeEqual(sig, sign(`${r}.${exp}.${version}`))) return false;
+  if (Number(exp) * 1000 <= Date.now()) return false;
+  if (role === 'player' && Number(version) !== (await playerSessionVersion())) return false;
+  return true;
 }
 
 export const isPlayer = () => hasRole('player');

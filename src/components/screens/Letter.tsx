@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import type { PublicTask, Tone } from '@/lib/content/public';
-import { api, uploadPhoto, type GameState, type TaskView } from '../api';
+import { api, prepareImage, UnsupportedImageError, UploadError, uploadPhoto, type GameState, type TaskView } from '../api';
 import { CameraIcon, Eq, FamilyDots, GalleryIcon, LockIcon, Orbs, Shine, Stars } from '../decor';
 import { Stage, useVisualViewport } from '../Stage';
 import { C, G, hand, padBottom, padTop, sans, serif } from '../tokens';
@@ -507,10 +507,11 @@ export function Tape({ width = 100 }: { width?: number }) {
 /* -------------------------------------------------------------- bildebrev */
 
 function PhotoLetter({ task, onBack, onState, onSolved }: LetterProps) {
-  const [file, setFile] = useState<File | null>(null);
+  const [photo, setPhoto] = useState<Blob | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [preparing, setPreparing] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => () => {
@@ -519,26 +520,36 @@ function PhotoLetter({ task, onBack, onState, onSolved }: LetterProps) {
 
   const pick = () => inputRef.current?.click();
 
-  const onFile = (f: File | undefined) => {
+  // Gjør bildet klart med en gang (også HEIC fra iPhone), så forhåndsvisningen virker overalt.
+  const onFile = async (f: File | undefined) => {
     if (!f) return;
-    setFile(f);
-    setError(false);
-    setPreview((old) => {
-      if (old) URL.revokeObjectURL(old);
-      return URL.createObjectURL(f);
-    });
+    setError(null);
+    setPreparing(true);
+    try {
+      const prepared = await prepareImage(f);
+      setPhoto(prepared);
+      setPreview(URL.createObjectURL(prepared));
+    } catch (e) {
+      console.error(e);
+      setError(
+        e instanceof UnsupportedImageError ? 'dette bildeformatet kan ikke leses — prøv et annet bilde ♥' : 'fikk ikke lest bildet — prøv igjen ♥',
+      );
+    } finally {
+      setPreparing(false);
+      if (inputRef.current) inputRef.current.value = '';
+    }
   };
 
   const submit = async () => {
-    if (!file || busy) return;
+    if (!photo || busy) return;
     setBusy(true);
-    setError(false);
+    setError(null);
     try {
-      onState(await uploadPhoto(task.id, file));
+      onState(await uploadPhoto(task.id, photo));
       onSolved();
     } catch (e) {
       console.error(e);
-      setError(true);
+      setError(`fikk ikke limt på frimerket — prøv igjen ♥${e instanceof UploadError ? ` (${e.message})` : ''}`);
     } finally {
       setBusy(false);
     }
@@ -547,7 +558,7 @@ function PhotoLetter({ task, onBack, onState, onSolved }: LetterProps) {
   return (
     <Frame task={task} onBack={onBack}>
       <div style={promptStyle(task.id === 9 ? 25 : task.id === 8 ? 26 : 27)}>{task.prompt}</div>
-      <input ref={inputRef} type="file" accept="image/*" className="visually-hidden" onChange={(e) => onFile(e.target.files?.[0])} />
+      <input ref={inputRef} type="file" accept="image/*,.heic,.heif" className="visually-hidden" onChange={(e) => onFile(e.target.files?.[0])} />
       <div style={{ flex: 1, minHeight: 0, marginTop: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
         {preview ? (
           <button type="button" onClick={pick} className="tap" style={{ position: 'relative', height: '100%', maxHeight: 250, aspectRatio: '4 / 5', maxWidth: '80%' }}>
@@ -560,10 +571,12 @@ function PhotoLetter({ task, onBack, onState, onSolved }: LetterProps) {
           <PhotoPlaceholder task={task} onPick={pick} />
         )}
       </div>
-      {error && (
-        <div style={{ fontFamily: hand, fontSize: 21, color: C.rose, textAlign: 'center', marginTop: 8, flex: 'none' }}>fikk ikke limt på frimerket — prøv igjen ♥</div>
-      )}
-      {file ? (
+      {error && <div style={{ fontFamily: hand, fontSize: 21, color: C.rose, textAlign: 'center', marginTop: 8, flex: 'none' }}>{error}</div>}
+      {preparing ? (
+        <Btn variant="muted" disabled style={{ marginTop: 14 }}>
+          Gjør klar bildet…
+        </Btn>
+      ) : photo ? (
         <Btn variant="lav" shine={!busy} onClick={submit} disabled={busy} style={{ marginTop: 14 }}>
           {busy ? 'Limer på frimerket…' : 'Lim på frimerket'}
         </Btn>

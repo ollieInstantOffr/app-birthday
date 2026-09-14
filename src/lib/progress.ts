@@ -71,9 +71,13 @@ export function statusOf(taskId: number, progress: Map<number, Progress>, now: D
   const task = taskById(taskId)!;
   const row = progress.get(taskId)!;
   if (row.solvedAt) return 'solved';
+  // Rekkefølgen gjelder alltid — også i testmodus og ved manuell opplåsing:
+  // et brev åpner bare når alle brevene før er forseglet.
+  for (let id = 1; id < taskId; id++) {
+    if (!progress.get(id)?.solvedAt) return 'locked';
+  }
+  // Testmodus og «Lås opp nå» hopper bare over klokkeslettet.
   if (row.manualUnlock || testMode) return 'available';
-  const prev = progress.get(taskId - 1);
-  if (prev && !prev.solvedAt) return 'locked';
   const at = unlocksAt(task);
   if (at && now < at) return 'timelocked';
   return 'available';
