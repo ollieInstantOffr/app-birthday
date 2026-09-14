@@ -27,8 +27,21 @@ export interface FinaleData {
 }
 
 export class HttpError extends Error {
-  constructor(public status: number) {
-    super(`HTTP ${status}`);
+  /** Feilkoden fra appen, eller «ikke-appen» hvis svaret ikke kom fra appen (f.eks. en proxy). */
+  constructor(
+    public status: number,
+    public code?: string,
+  ) {
+    super(`HTTP ${status}${code ? ` ${code}` : ''}`);
+  }
+}
+
+async function errorCode(res: Response): Promise<string> {
+  try {
+    const json = (await res.clone().json()) as { code?: string; error?: string };
+    return json.code ?? json.error ?? 'ukjent';
+  } catch {
+    return 'ikke-appen';
   }
 }
 
@@ -40,7 +53,7 @@ export async function api<T>(path: string, body?: unknown): Promise<T> {
     cache: 'no-store',
     credentials: 'same-origin',
   });
-  if (!res.ok) throw new HttpError(res.status);
+  if (!res.ok) throw new HttpError(res.status, await errorCode(res));
   return res.json() as Promise<T>;
 }
 
@@ -106,38 +119,31 @@ export async function prepareImage(file: File, maxWidth = 1600, quality = 0.85):
 }
 
 /** Laster opp et bilde som allerede er gjort klart med prepareImage. */
+/** Sender bildet (gjort klart med prepareImage) til serveren, som lagrer det i S3 eller lokalt. */
 export async function uploadPhoto(taskId: number, blob: Blob): Promise<GameState> {
-  let presign: { key: string; url: string };
+  let res: Response;
   try {
-    presign = await api<{ key: string; url: string }>('/api/uploads/presign', { taskId });
-  } catch (e) {
-    throw new UploadError('presign', e instanceof HttpError ? e.status : 0);
+    res = await fetch(`/api/tasks/${taskId}/photo`, {
+      method: 'POST',
+      body: blob,
+      headers: { 'Content-Type': 'image/jpeg' },
+      credentials: 'same-origin',
+    });
+  } catch {
+    throw new UploadError(0);
   }
-  const { key, url } = presign;
-  const viaServer = `/api/uploads/local?key=${encodeURIComponent(key)}`;
-  const put = (target: string) =>
-    fetch(target, { method: 'PUT', body: blob, headers: { 'Content-Type': 'image/jpeg' } }).catch(() => null); // nett/CORS-feil → null
-
-  let res = await put(url);
-  // Direkte til S3 feilet (ofte manglende CORS på bøtta) — send via serveren i stedet.
-  if ((!res || !res.ok) && url !== viaServer) res = await put(viaServer);
-  if (!res || !res.ok) throw new UploadError('upload', res?.status ?? 0);
-
-  try {
-    const done = await api<{ state: GameState }>(`/api/tasks/${taskId}/photo`, { key });
-    return done.state;
-  } catch (e) {
-    throw new UploadError('save', e instanceof HttpError ? e.status : 0);
-  }
+  if (!res.ok) throw new UploadError(res.status, await errorCode(res));
+  const json = (await res.json()) as { state: GameState };
+  return json.state;
 }
 
-/** Hvilket steg som feilet, så feilmeldingen i appen kan si noe nyttig. */
+/** Statuskode og feilkode fra opplastingen, så feilmeldingen i appen kan si noe nyttig. */
 export class UploadError extends Error {
   constructor(
-    public stage: 'presign' | 'upload' | 'save',
     public status: number,
+    public code?: string,
   ) {
-    super(`${stage} ${status || 'nettverk'}`);
+    super(`opplasting ${status || 'nettverk'}${code ? ` ${code}` : ''}`);
   }
 }
 

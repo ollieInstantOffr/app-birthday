@@ -155,7 +155,7 @@ Denne skal ikke bruke den vanlige riktig-svar-malen. Den er en liten finale midt
 > **Ting jeg er glad i**
 >
 > Jeg er glad i sene sommerkvelder der vi blir sittende ute til himmelen blir mørk, fordi ingen av oss vil at dagen skal være over.
-> Jeg er glad i at noen husker de små tingene, som hvordan jeg liker kaffen min og hva jeg var nervøs for i forrige uke.
+> Jeg er glad i at noen husker de små tingene, og alltid vet hva som skal til for å få meg til å smile.
 > Jeg er glad i å se en liten gutt sovne trygt inntil mammaen sin, og få være en del av det hver eneste dag.
 > Jeg er glad i et menneske som gir og gir, og likevel alltid har mer omsorg, mer latter og mer energi.
 > Jeg er glad i at det finnes én person som gjør at alt kjennes som å komme hjem igjen.

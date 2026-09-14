@@ -62,7 +62,7 @@ Tre typer. Alle deler samme kortmal. Typen styrer hva som vises og hvordan svare
 - Det finnes ingen «gi opp»-knapp. Etter 5 feil forsøk vises hint 2, som i praksis er svaret.
 
 ### 3.4 Bildeopplasting
-- Klienten ber om en presignert PUT-URL: `POST /api/uploads/presign` → `{ url, key }`.
+- Klienten sender bildet til serveren: `POST /api/tasks/[id]/photo` med JPEG i body. Serveren lagrer det i S3 (eller lokalt).
 - Klienten laster opp direkte til S3. Bildet passerer aldri serveren.
 - Nøkkel: `birthday/2026/task-{n}/{uuid}.jpg`.
 - Serveren lagrer `key` i `Submission`, og genererer presignerte GET-URL-er (1 times levetid) ved visning.
@@ -150,7 +150,7 @@ Alle 10 oppgavene legges inn via `prisma/seed.ts`. Det gjør det trivielt å jus
 | `/api/tasks` | GET | Alle oppgaver, men **uten** `acceptedAnswers` og `hint2` for låste |
 | `/api/tasks/[id]/answer` | POST | Validerer svar, oppdaterer status, låser opp neste |
 | `/api/tasks/[id]/hint` | GET | Returnerer hint hvis vilkårene er oppfylt |
-| `/api/uploads/presign` | POST | Presignert S3 PUT-URL |
+| `/api/tasks/[id]/photo` | POST | Tar imot bildet og lagrer det i S3 eller lokalt |
 | `/api/finale` | GET | 403 hvis ikke alle løst; ellers bilder + gavedata |
 | `/api/admin/state` | GET | Full status til admin |
 | `/api/admin/unlock/[id]` | POST | Manuell opplåsing |
@@ -261,7 +261,7 @@ Gåten står **ikke** i appen. Moren har et kort fra Ollie som hun gir Regine un
 > **Ting jeg er glad i**
 >
 > Jeg er glad i sene sommerkvelder der vi blir sittende ute til himmelen blir mørk, fordi ingen av oss vil at dagen skal være over.
-> Jeg er glad i at noen husker de små tingene, som hvordan jeg liker kaffen min og hva jeg var nervøs for i forrige uke.
+> Jeg er glad i at noen husker de små tingene, og alltid vet hva som skal til for å få meg til å smile.
 > Jeg er glad i å se en liten gutt sovne trygt inntil mammaen sin, og få være en del av det hver eneste dag.
 > Jeg er glad i et menneske som gir og gir, og likevel alltid har mer omsorg, mer latter og mer energi.
 > Jeg er glad i at det finnes én person som gjør at alt kjennes som å komme hjem igjen.
@@ -274,7 +274,7 @@ Gåten står **ikke** i appen. Moren har et kort fra Ollie som hun gir Regine un
 
 Teksten nevner aldri henne, og oppgaven sier ikke at svaret er et navn. Hun leter etter «et ord» — og oppdager først på slutten at alt Ollie er glad i, staver navnet hennes.
 
-**Løsning:** siste bokstav i hver setning: ove**r** · uk**e** · da**g** · energ**i** · igje**n** · bort**e** → **REGINE**
+**Løsning:** siste bokstav i hver setning: ove**r** · smil**e** · da**g** · energ**i** · igje**n** · bort**e** → **REGINE**
 (Bonus: «energi» har de samme bokstavene som «Regine».)
 **Fasit:** `regine`
 **Hint 1:** «Ordet står ikke i teksten. Det er bygget av bokstaver.»

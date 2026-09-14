@@ -37,13 +37,7 @@ export function keyTask(key: string): number | null {
   return m ? Number(m[1]) : null;
 }
 
-export async function presignPut(key: string): Promise<string> {
-  return getSignedUrl(s3(), new PutObjectCommand({ Bucket: process.env.S3_BUCKET, Key: key, ContentType: 'image/jpeg' }), {
-    expiresIn: 600,
-  });
-}
-
-/** Reserve når telefonen ikke får laste opp direkte (f.eks. manglende CORS på bøtta). */
+/** Serveren laster opp bildet til S3 (telefonen snakker aldri direkte med bøtta). */
 export async function putObject(key: string, data: Buffer): Promise<void> {
   await s3().send(new PutObjectCommand({ Bucket: process.env.S3_BUCKET, Key: key, Body: data, ContentType: 'image/jpeg' }));
 }

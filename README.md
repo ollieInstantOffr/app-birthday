@@ -49,9 +49,10 @@ Svarene normaliseres (store/små bokstaver, mellomrom, tegnsetting, æøå). Bre
 
 ## Bilder
 
-- Er `S3_BUCKET` satt, laster telefonen opp direkte til S3 med en presignert URL. Bøtta bør ha **CORS** som tillater `PUT` fra appens domene med header `Content-Type`. Feiler direkte opplasting (f.eks. manglende CORS), sender appen bildet via serveren til bøtta i stedet — så det virker uansett.
-- Uten S3 lagres bildene i `UPLOAD_DIR` (i Docker: volumet `uploads`).
-- Bildene komprimeres til maks 1600 px bredde på telefonen før opplasting.
+- Telefonen gjør bildet om til JPEG (også HEIC fra iPhone) og skalerer det ned til maks 1600 px bredde, og sender det så til serveren (`POST /api/tasks/[id]/photo`).
+- Serveren lagrer bildet i S3 hvis `S3_BUCKET` er satt, ellers i `UPLOAD_DIR` (i Docker: volumet `uploads`). Telefonen snakker aldri direkte med S3, så bøtta trenger ingen CORS.
+- Bildene er vanligvis noen hundre KB. Har du Nginx foran, sett gjerne `client_max_body_size 20m;` så store bilder ikke avvises.
+- Feiler en opplasting, viser appen statuskode og feilkode (f.eks. `opplasting 413 size`). `ikke-appen` betyr at svaret kom fra noe foran appen, typisk proxyen.
 
 ## Deploy
 
