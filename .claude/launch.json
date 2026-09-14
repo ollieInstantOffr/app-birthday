@@ -4,8 +4,8 @@
     {
       "name": "bursdagsjakten-dev",
       "runtimeExecutable": "sh",
-      "runtimeArgs": ["-c", "S3_BUCKET= EVENT_DATE=2026-09-14 npx next dev -p 7644"],
-      "port": 7644
+      "runtimeArgs": ["-c", "S3_BUCKET= EVENT_DATE=2026-09-14 npx next dev -p 7661"],
+      "port": 7661
     }
   ]
 }

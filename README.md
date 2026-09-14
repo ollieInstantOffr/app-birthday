@@ -13,8 +13,8 @@ npx prisma migrate deploy
 npm run dev
 ```
 
-- Spillet: http://localhost:7644 — koden er fødselsdatoen (`ACCESS_CODE`, DDMMÅÅ).
-- Admin: http://localhost:7644/admin — passord i `ADMIN_PASSWORD`.
+- Spillet: http://localhost:7661 — koden er fødselsdatoen (`ACCESS_CODE`, DDMMÅÅ).
+- Admin: http://localhost:7661/admin — passord i `ADMIN_PASSWORD`.
 
 ## Admin (`/admin`)
 
@@ -60,6 +60,8 @@ docker compose up -d --build
 ```
 
 Kjør bak reverse proxy med **HTTPS** (kreves for kamera på iPhone). Migreringer kjøres automatisk ved start.
+
+Appen lytter på port **7661** (både på hosten og i containeren). Endre med `APP_PORT=` i `.env`. Bruk alltid `--build` etter kodeendringer — ellers kjører Docker det gamle imaget.
 Valgfritt i `.env`: `COURSE_PLACE` (sted for keramikkurset) og `GIFT_IMAGE` (URL til et ekte bilde i avsløringen).
 
 ## Før bursdagen

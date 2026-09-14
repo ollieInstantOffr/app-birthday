@@ -16,9 +16,11 @@ services:
   app:
     build: .
     restart: unless-stopped
-    ports: ["7644:7644"]
+    # Porten styres av APP_PORT i .env (standard 7661) — samme port ute og inne i containeren.
+    ports: ["${APP_PORT:-7661}:${APP_PORT:-7661}"]
     env_file: .env
     environment:
+      PORT: ${APP_PORT:-7661}
       DATABASE_URL: postgresql://birthday:${DB_PASSWORD}@db:5432/birthday
       UPLOAD_DIR: /data/uploads
     volumes: [uploads:/data/uploads]

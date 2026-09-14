@@ -175,7 +175,7 @@ services:
       interval: 5s
   app:
     build: .
-    ports: ["7644:7644"]
+    ports: ["7661:7661"]
     env_file: .env
     depends_on:
       db: { condition: service_healthy }
