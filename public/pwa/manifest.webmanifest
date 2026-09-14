@@ -1,0 +1,16 @@
+{
+  "name": "Bursdagsjakten",
+  "short_name": "Bursdagsjakten",
+  "description": "Ti brev til Regine",
+  "display": "standalone",
+  "orientation": "portrait",
+  "start_url": "/",
+  "scope": "/",
+  "background_color": "#FFF5F7",
+  "theme_color": "#F2679A",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

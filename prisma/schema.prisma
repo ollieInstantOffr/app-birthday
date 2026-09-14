@@ -1,0 +1,72 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "linux-musl-arm64-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Selve oppgaveteksten, fasit og hint ligger i src/lib/content/ — databasen holder bare fremdriften.
+model Progress {
+  taskId          Int       @id
+  solvedAt        DateTime?
+  manualUnlock    Boolean   @default(false)
+  openedAt        DateTime?
+  attemptCount    Int       @default(0)
+  hint1At         DateTime?
+  attemptsAtHint1 Int?
+  hint2At         DateTime?
+}
+
+model Submission {
+  id        Int      @id @default(autoincrement())
+  taskId    Int
+  storage   String // "s3" | "local"
+  key       String
+  createdAt DateTime @default(now())
+
+  @@index([taskId])
+}
+
+model AttemptLog {
+  id        Int      @id @default(autoincrement())
+  taskId    Int
+  value     String
+  correct   Boolean
+  createdAt DateTime @default(now())
+
+  @@index([taskId])
+}
+
+/// En telefon/nettleser der Regine har sagt ja til push-varsler.
+model PushDevice {
+  id            Int       @id @default(autoincrement())
+  role          String    @default("player")
+  endpoint      String    @unique
+  p256dh        String
+  auth          String
+  userAgent     String?
+  createdAt     DateTime  @default(now())
+  lastSuccessAt DateTime?
+  lastError     String?
+}
+
+/// Varsler som er sendt: automatiske (07:00, 13:15, 18:15 — nøkkelen hindrer duplikater) og egne fra admin.
+model PushLog {
+  key     String   @id
+  kind    String   @default("scheduled") // "scheduled" | "custom"
+  title   String?
+  body    String?
+  devices Int?
+  sentAt  DateTime @default(now())
+}
+
+model AppState {
+  id           Int       @id @default(1)
+  welcomedAt   DateTime?
+  giftOpenedAt DateTime?
+  /// Testmodus: alle brev åpne, hint med en gang, finalen tilgjengelig. Styres fra /admin.
+  testMode     Boolean   @default(false)
+}
